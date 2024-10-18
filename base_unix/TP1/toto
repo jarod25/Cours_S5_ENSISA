@@ -1,0 +1,232 @@
+#!/bin/bash
+
+ANALYSE="./ANALYSE"
+CACHE="./CACHE"
+DOWNLOADS="./DOWNLOADS"
+
+
+effac_analyse(){
+    echo "Efface les ANALYSE"
+    if [ -d "$ANALYSE" ]; then
+        rm -rf "$ANALYSE"/*
+    else
+        echo "Repertoire $ANALYSE n'existe pas Creation en cours"
+        mkdir -p "$ANALYSE"
+    fi
+}
+
+effac_telech(){
+    echo "Efface les téléchargements"
+    if [ -d "$DOWNLOADS" ]; then
+        rm -rf "$DOWNLOADS"/*
+    else
+        echo "Repertoire $DOWNLOADS n'existe pas Creation en cours"
+        mkdir -p "$DOWNLOADS"
+    fi
+}
+
+effac_cache(){
+    echo "Efface le cache"
+    if [ -d "$CACHE" ]; then
+        rm -rf "$CACHE"/*
+    else
+        echo "Repertoire $CACHE n'existe pas Creation en cours"
+        mkdir -p "$CACHE"
+    fi
+}
+
+
+initialize(){
+    echo "Initialisation"
+    effac_telech
+    effac_cache
+    effac_analyse
+}
+
+telecharger_meteo(){
+    local date_day=$(date +%d-%m-%Y)
+    echo "Météo pour le $date_day"
+    
+    local ville="$1"
+    local code_postale=""
+    local csv_file="code_ville.csv"
+
+    
+    echo "Ville input: $ville"
+
+    
+    code_postale=$(awk -F';' -v ville="$ville" 'BEGIN {IGNORECASE=1} {gsub(/^[ \t]+|[ \t]+$/, "", $2); if ($2 ~ "^" ville) {print $3; exit}}' "$csv_file")
+
+    
+    echo "Ville : $ville"         
+    echo "Code postal : $code_postale"
+
+    if [[ -z "$ville" || -z "$code_postale" ]]; then
+        echo "Error: Ville or Code Postal is empty. Exiting..."
+        return 1
+    fi
+
+    local url="http://meteofrance.com/previsions-meteo-france/${ville// /-}/$code_postale"
+    echo "URL: $url"
+    
+    local fichier="${DOWNLOADS}/${ville// /_}-${code_postale}-${date_day}.html"
+
+    echo "Téléchargement des données météo avec Chromium "
+    #curl ne marchera pas car il y a du js rendering 
+
+    chromium-browser --headless --disable-gpu --dump-dom "$url" > "$fichier"
+
+    echo "Téléchargement terminé : $fichier"
+}
+
+
+
+
+extract(){
+    output_csv="${ANALYSE}/weather_data.csv"
+    
+    if [[ ! -f "$output_csv" ]]; then
+        echo "City,Postal Code,Date,Current Temperature,Wind Speed,Low Temperature,High Temperature" > "$output_csv"
+    fi
+
+
+    for fichier in "${DOWNLOADS}"/*.html; do
+        
+        ville=$(basename "$fichier" | cut -d'-' -f1)
+        code_postale=$(basename "$fichier" | cut -d'-' -f2)
+        date_day=$(basename "$fichier" | cut -d'-' -f3 | cut -d'.' -f1)
+
+        current_temp=$(sed -n 's/.*<strong class="temp">\([0-9]*°\).*/\1/p' "$fichier")
+        current_wind=$(sed -n 's/.*<li class="wind">.*<strong>\([0-9]*\)<\/strong>.*km\/h.*/\1/p' "$fichier" | head -1)
+        low_temp=$(sed -n 's/.*<p class="temp min"><strong>\([0-9]*°\)<\/strong><\/p>.*/\1/p' "$fichier")
+        high_temp=$(sed -n 's/.*<p class="temp max"><strong>\([0-9]*°\)<\/strong><\/p>.*/\1/p' "$fichier")
+
+       
+        current_temp=${current_temp//°/}
+        low_temp=${low_temp//°/}
+        high_temp=${high_temp//°/}
+
+       
+        echo "$ville,$code_postale,$date_day,$current_temp,$current_wind,$low_temp,$high_temp" >> "$output_csv"
+    done
+
+    echo "Data extracted and saved to $output_csv"
+}
+
+
+
+generate_html_from_csv(){
+    
+    csv_file="${ANALYSE}/weather_data.csv"
+    html_file="${ANALYSE}/weather_report.html"
+
+    
+    echo "<!DOCTYPE html>
+<html>
+<head>
+    <title>Meteo</title>
+    <meta charset=\"UTF-8\">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
+        th { background-color: #f4f4f4; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Consolidated Weather Report</h1>
+    <table>
+        <tr>
+            <th>Ville</th>
+            <th>Code Postale</th>
+            <th>Date</th>
+            <th>Temperature</th>
+            <th>Wind Speed</th>
+            <th>Low Tempe</th>
+            <th>High Temp</th>
+        </tr>" > "$html_file"
+
+    
+    while IFS=',' read -r ville code_postale date_day current_temp current_wind low_temp high_temp; do
+        
+        if [[ "$ville" == "City" ]]; then
+            continue
+        fi
+
+        
+        echo "        <tr>
+            <td>$ville</td>
+            <td>$code_postale</td>
+            <td>$date_day</td>
+            <td>$current_temp°C</td>
+            <td>$current_wind km/h</td>
+            <td>$low_temp°C</td>
+            <td>$high_temp°C</td>
+        </tr>" >> "$html_file"
+    done < "$csv_file"
+
+    
+    echo "    </table>
+</body>
+</html>" >> "$html_file"
+
+    echo "HTML weather report generated: $html_file"
+}
+
+triche() {
+    local n="$1"
+    echo "Shifting all dates by $n days..."
+    awk -F, -v shift="$n" '
+    BEGIN {OFS = ","}
+    {
+        split($2, date, ":");
+        new_date = strftime("%d:%m:%Y", mktime(date[3] " " date[2] " " date[1] + shift " 0 0 0"));
+        $2 = new_date;
+        print $0;
+    }' "$CACHE_DIR/analysis.csv" > "$CACHE_DIR/analysis_tmp.csv"
+    mv "$CACHE_DIR/analysis_tmp.csv" "$CACHE_DIR/analysis.csv"
+}
+
+while getopts ":icemt:s:aw:ht" opt; do
+    case $opt in
+        i) initialize ;;
+        c) effac_telech ;;
+        e) effac_analyse ;;
+        m) 
+            echo "M option detected with argument: '$OPTARG'"  
+            if [[ -z "$OPTARG" ]]; then
+                echo "No argument provided for -m option."
+                exit 1
+            fi
+            telecharger_meteo "$OPTARG" 
+            ;;
+        s) telecharger_meteo_simulation ;;
+        a) analyze ;;
+        w) generate_html="$OPTARG" "${!OPTION}" ;;
+        t) triche "$OPTARG";;
+        h) 
+            echo "Usage: meteo [options]"
+            echo "Options:"
+            echo "  -i      Initialisation"
+            echo "  -c      Effecer Telechargements"
+            echo "  -e      Effacer analyses"
+            echo "  -m <city>  Telecherger meteo pour une ville"
+            echo "  -s      Telecherger meteo  simulation"
+            echo "  -a      Analyser données "
+            echo "  -w <file>  Generer HTML f"
+            echo "  -t <days>  Triche"
+            echo "  -h      Show this help message"
+            exit 0 
+            ;;
+        *) 
+            echo "Invalid option: -$OPTARG" >&2 
+            exit 1 
+            ;;
+        :) 
+            echo "Option -$OPTARG doit contentir un argument." >&2 
+            exit 1 
+            ;;
+    esac
+done

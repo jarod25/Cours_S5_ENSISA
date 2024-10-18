@@ -1,0 +1,137 @@
+#!/bin/bash
+
+function opt_i() {
+    echo "Initialisation"
+
+}
+
+function opt_c() {
+    echo "Effacement des téléchargements précédents"
+
+}
+
+function opt_e() {
+    echo "Effacement des analyses précédentes"
+
+}
+
+function opt_m() {
+    if [[ -z "$1" ]]; then
+        echo "Erreur : Option -m nécessite un paramètre (ville)"
+    else
+        echo "Téléchargement de la page météo pour la ville : $1"
+
+    fi
+}
+
+function opt_s() {
+    if [[ -z "$1" ]]; then
+        echo "Erreur : Option -s nécessite un paramètre (ville)"
+    else
+        echo "Téléchargement simulé de la météo pour la ville : $1"
+
+    fi
+}
+
+function opt_a() {
+    echo "Analyse des fichiers téléchargés"
+
+}
+
+function opt_w() {
+        if [[ -z "$1" || -z "$2" ]]; then
+        echo "Erreur : Option -w nécessite deux paramètres (ville et jour)"
+    else
+        echo "Création de la page web pour la ville : $1 et le jour : $2"
+
+    fi
+}
+
+function opt_t() {
+        if [[ -z "$1" ]]; then
+        echo "Erreur : Option -t nécessite un paramètre"
+    else
+        echo "Triche avec le paramètre : $1"
+
+    fi
+}
+
+opt_h() {
+    echo "Aide :"
+    echo
+    echo "Commande : ./meteo [options]"
+    echo
+    echo "Options :"
+    echo "  -i            Initialisation"
+    echo
+    echo "  -c            Effacement des téléchargements précédents."
+    echo
+    echo "  -e            Effacement des analyses précédentes."
+    echo
+    echo "  -m ville      Téléchargement de la page web de météo France qui décrit la météo pour la ville donnée en paramètre."
+    echo "                Une ville peut être décrite par son nom ou son code postal."
+    echo
+    echo "  -s ville      Cette option marche comme -m mais remplace l'URL officielle pour atteindre un site local qui héberge"
+    echo "                les pages précédemment téléchargées. Cette option simule un téléchargement réel."
+    echo
+    echo "  -a            Analyse l'ensemble des fichiers préalablement téléchargés. Si vous avez rien téléchargé, il ne se passe"
+    echo "                rien. Si vous n'avez utilisé l'option -m qu'une fois, vous ne devrez analyser que ce fichier. Par contre,"
+    echo "                si vous avez utilisé -m 4 fois, je peux supposer que vous avez 4 fichiers temporaires qu'il faudra donc"
+    echo "                analyser. De plus, si vous faites deux fois de suite l'option -a, j'aurais une double extraction des données."
+    echo "                C'est la vie."
+    echo
+    echo "  -w ville jour Fabrication de la page web qui portera le nom <<ville>>-<<jour>>.html. Cette page extrait de la base"
+    echo "                des données météo l'ensemble des entrées qui concerne la ville au jour donné sous une forme tabulaire."
+    echo
+    echo "  -t n          Triche"
+    echo
+    echo "  -h            Affichage de cette aide"
+}
+
+
+function meteo() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i) opt_i ;;
+            -c) opt_c ;;
+            -e) opt_e ;;
+            -m)
+                opt_m "$2"
+                shift
+                ;;
+            -s)
+                opt_s "$2"
+                shift
+                ;;
+            -a) opt_a ;;
+            -w)
+                opt_w "$2" "$3"
+                shift 2
+                ;;
+            -t)
+                opt_t "$2"
+                shift
+                ;;
+            -h) opt_h ;;
+            -*) echo "Option non valide : $1. Utilisez -h pour voir l'aide." ;;
+        esac
+        shift
+    done
+}
+
+
+meteo "$@"
+
+# toto="68100"
+
+# api="https://api-adresse.data.gouv.fr/search/?q=$toto&limit=1&type=municipality"
+
+# result=$(curl -s "$api")
+
+# city=$(echo "$result" | jq -r '.features[0].properties.city')
+# postcode=$(echo "$result" | jq -r '.features[0].properties.postcode')
+
+# echo "City: $city"
+# echo "Postcode: $postcode"
+
+# meteo_url="http://www.meteofrance.com/previsions-meteo-france/$city/$postecode"

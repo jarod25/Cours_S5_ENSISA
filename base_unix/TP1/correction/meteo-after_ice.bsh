@@ -1,0 +1,99 @@
+#!/bin/bash
+DLS="downloads"
+ANALYSES="analyses"
+MAPPINGS="mappings"
+
+function messageOnStderr () {
+    echo "$1" 2>&1
+}
+
+function clearDownloads () {
+   [ -d "$DLS" ] && rm -r "$DLS"
+}
+
+function clearMappings () {
+   [ -d "$MAPPINGS" ] && rm -r "$MAPPINGS"
+}
+
+function eraseAnalyses () {
+   [ -d "$ANALYSES" ] && rm -r "$ANALYSES"
+}
+
+function before () {
+	[ ! -d "$DLS" ] && mkdir "$DLS"
+	[ ! -d "$ANALYSES" ] && mkdir "$ANALYSES"
+	[ ! -d "$MAPPINGS" ] && mkdir "$MAPPINGS"
+}
+
+function option_i () {
+    messageOnStderr "init"
+	clearMappings
+	clearDownloads
+	eraseAnalyses
+}
+
+function option_c () {
+    messageOnStderr "clear"
+	clearDownloads
+}
+
+function option_e () {
+    messageOnStderr "erase"
+	eraseAnalyses
+}
+
+function option_m () {
+    messageOnStderr "meteo of $1"
+}
+
+function option_s () {
+    messageOnStderr "safe of $1"
+}
+
+function option_a () {
+    messageOnStderr "analyse"
+}
+
+function option_w () {
+    messageOnStderr "web for $1 at $2"
+}
+
+function option_t () {
+    messageOnStderr "cheat with $1"
+}
+
+function help () {
+    {
+        echo "meteo [option]*"
+        echo "  -i"
+        echo "  -c"
+        echo "  -e"
+        echo "  -m town"
+        echo "  -s town"
+        echo "  -w town day"
+        echo "  -t day"
+        echo "  -h"
+    } 2>&1
+}
+
+function error () {
+    messageOnStderr "error $1"
+    exit 1
+}
+
+before
+while [ "$#" != "0" ]; do
+	case "$1" in
+	-i) option_i;;
+	-c) option_c;;
+	-e) option_e;;
+	-m) option_m "$2"; shift;;
+	-s) option_s "$2"; shift;;
+	-a) option_a;;
+	-w) option_w "$2" "$3"; shift; shift;;
+	-t) option_t "$2"; shift;;
+	-h) help;;
+	*) error "wrong option $1";;
+	esac
+    shift 1
+done

@@ -1,0 +1,401 @@
+#!/bin/bash
+DEBUG=1
+USER_AGENT="Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0"
+DLS="downloads"
+ANALYSES="analyses"
+MAPPINGS="mappings"
+KNOWN_MAPPINGS="$MAPPINGS/mappings.txt"
+URL_REAL_METEOFRANCE="https://meteofrance.com/previsions-meteo-france/TOWN/ZIP"
+URL_SAFE_METEOFRANCE="http://localhost/www.meteofrance.com/previsions-meteo-france/TOWN/ZIP"
+URL_FAKE_METEOFRANCE="file:///home/hassenforder/previsions-meteo-france/TOWN-ZIP"
+URL_MAPPING="https://datanova.legroupe.laposte.fr/api/records/1.0/search/?dataset=laposte_hexasmal&q=PARAM&lang=fr&rows=3&facet=nom_de_la_commune&facet=code_postal"
+
+function messageOnStderr () {
+    echo "$1" 2>&1
+}
+
+LINE=1
+function debug () {
+    if [ "$DEBUG" != 0 ]; then
+		echo "$LINE>> '$*'" >/dev/tty
+		((LINE=LINE+1))
+	fi
+}
+
+function clearDownloads () {
+   [ -d "$DLS" ] && rm -r "$DLS"
+}
+
+function clearMappings () {
+   [ -d "$MAPPINGS" ] && rm -r "$MAPPINGS"
+}
+
+function eraseAnalyses () {
+   [ -d "$ANALYSES" ] && rm -r "$ANALYSES"
+}
+
+function before () {
+	[ ! -d "$DLS" ] && mkdir "$DLS"
+	[ ! -d "$ANALYSES" ] && mkdir "$ANALYSES"
+	[ ! -d "$MAPPINGS" ] && mkdir "$MAPPINGS"
+	[ ! -f "$KNOWN_MAPPINGS" ] && cat < /dev/null > "$KNOWN_MAPPINGS"
+}
+
+function option_i () {
+    messageOnStderr "init"
+	clearMappings
+	clearDownloads
+	eraseAnalyses
+}
+
+function option_c () {
+    messageOnStderr "clear"
+	clearDownloads
+}
+
+function option_e () {
+    messageOnStderr "erase"
+	eraseAnalyses
+}
+
+function buildMeteoFranceFilename () {
+    day=`date "+%m_%d_%Y"`
+	echo "$DLS/$1-$2-$day.html"
+}
+
+function buildMeteoFranceURL () {
+   sed -e "s/TOWN/$1/" -e "s/ZIP/$2/"
+}
+
+function buildMappingFilename () {
+	echo "$MAPPINGS/local.json"
+}
+
+function buildMappingURL () {
+	param=""
+	param=${param:-$1}
+	param=${param:-$2}
+	sed -e "s/PARAM/$param/"
+}
+
+function getUrlMeteoFrance () {
+   case "$1" in 
+   real) echo "$URL_REAL_METEOFRANCE";;
+   safe) echo "$URL_SAFE_METEOFRANCE";;
+   fake) echo "$URL_FAKE_METEOFRANCE";;
+   esac
+}
+
+function downloadFromMeteoFrance () {
+   FILENAME=`buildMeteoFranceFilename "$1" "$2"`
+   if [ ! -f "$FILENAME" ]; then
+      URL=`getUrlMeteoFrance "$3" | buildMeteoFranceURL "$1" "$2"`
+      debug "download weather required for #$1# #$2# : $URL"
+      curl -A "$USER_AGENT" "$URL" > "$FILENAME"
+   fi
+}
+
+function downloadMapping () {
+   URL=`echo "$URL_MAPPING" | buildMappingURL "$1" "$2"`
+   debug "download mapping required for #$1# #$2#"
+   curl -A "$USER_AGENT" "$URL" > "$3"
+}
+
+function extractMappingFromJson () {
+   zip=${1:-[^\"]*}
+   town=${2:-[^\"]*}
+   debug "extractMapping for #$zip# #$town# on #$3#"
+   sed -n 's!.*"nom_de_la_commune": "\('"$town"'\)",[^,]*, "code_postal": "\('"$zip"'\)",.*!\2:\1!pI' < "$3" | tr [A-Z] [a-z]
+}
+
+function selectFromKnownMappings () {
+   zip=${1:-[^:]*}
+   town=${2:-.*}
+   grep -i "^$zip:$town\$" < "$KNOWN_MAPPINGS"
+}
+
+function insertInKnownMappings () {
+   [ ! -z "$3" ] && [ -z `selectFromKnownMappings "$1" "$2"` ] && echo "$3" >> "$KNOWN_MAPPINGS"
+}
+
+function getMapping () {
+   mapping=`selectFromKnownMappings "$1" "$2"`
+   if [ -z "$mapping" ]; then
+      target=`buildMappingFilename`
+      downloadMapping "$1" "$2" "$target"
+      mapping=`extractMappingFromJson "$1" "$2" "$target"`
+	  insertInKnownMappings "$1" "$2" "$mapping"
+   fi
+   echo "$mapping"
+}
+
+function processFromMeteoFrance () {
+	param="$2"
+	mode="$1"
+	town=""
+	zip=""
+	if expr "$param" + "0" 2>/dev/null >/dev/null; then
+		zip="$param"
+	else
+		town="$param"
+	fi
+	mapping=`getMapping "$zip" "$town"`
+	if [ ! -z "$mapping" ]; then 
+		zip=`echo $mapping | cut -d: -f1`
+		town=`echo $mapping | cut -d: -f2`
+		downloadFromMeteoFrance "$town" "$zip" "$mode" 
+	fi
+}
+
+function option_m () {
+    messageOnStderr "meteo of $1"
+	processFromMeteoFrance "real" "$1"
+}
+
+function option_s () {
+    messageOnStderr "safe of $1"
+	processFromMeteoFrance "safe" "$1"
+}
+
+function buildAnalyseFilename () {
+    mkdir -p "$ANALYSES/$1-$2"
+	echo "$ANALYSES/$1-$2/$1-$2-$3.txt"
+}
+
+function getInDayLines  () {
+   grep -n '<li class="weather-item"' | cut -d: -f1
+}
+
+function formatInput () {
+   sed -n '/id="atmogramme"/,/id="block-mfbulletintendance"/p' \
+         | sed 's/<\([^/]\)/\n<\1/g'
+}
+
+function getTagContent () {
+   sed 's![^>]*>\([^<]*\)<.*!\1!'
+}
+
+function getAltAttribute () {
+  sed 's!.*alt="\([^"]*\)".*!\1!'
+}
+
+function getNoisyContent () {
+   tr '\r\n' '  ' | sed -e 's/<[^>]*>//g' -e 's!  *! !g' -e 's/$/\n/';
+}
+
+function textAsKey () {
+   read text
+   key=""
+   case "$text" in
+   matin)		key="MORNING";;
+   après-midi)	key="AFTERNOON";;
+   soirée)		key="EVENING";;
+   nuit)		key="NIGHT";;
+   esac
+   echo "$key"
+}
+
+function getInstant () {
+   sed -n -e '/h2/,+1p' | head -1 | getTagContent | textAsKey
+}
+
+function getDailySky () {
+   sed -n -e '/h2/,+1p' | tail -1 | getTagContent
+}
+
+function getDailyTemperature () {
+   sed -n -e '/weather_temp/,+2p' | tail -1 | getTagContent
+}
+
+function getDailyWindDirection () {
+   sed -n -e '/wind-speed/,+1p' | tail -1 | getAltAttribute
+}
+
+function getDailyWindSpeed () {
+   sed -n -e '/wind-speed/,+4p' | tail -3 | getNoisyContent
+}
+
+function getDailyWindGusts () {
+   sed -n -e '/rafales_speed/p' | getTagContent
+}
+
+function getInWeekLines () {
+   grep -n '<li class="period_item"' | cut -d: -f1
+}
+
+function getWeeklySky () {
+   sed -n -e '/shape-weather/p' | getAltAttribute
+}
+
+function getWeeklyMinTemperature () {
+   sed -n -e '/class="min"/p' | getTagContent
+}
+
+function getWeeklyMaxTemperature () {
+   sed -n -e '/class="max"/p' | getTagContent
+}
+
+function getWeeklyWindDirection () {
+   sed -n -e '/wind/,+2p' | tail -1 | getAltAttribute
+}
+
+function getWeeklyWindSpeed () {
+   sed -n -e '/wind/,+5p' | tail -3 | getNoisyContent
+}
+
+function getWeeklyWindGusts () {
+   sed -n -e '/rafales_speed/p' | getTagContent
+}
+
+function analyseOneFile () {
+    input="$1"
+	town=`expr "/$input" : '.*/\(.*\)-.*-.*\..*'`
+	zip=`expr "/$input" : '.*/.*-\(.*\)-.*\..*'`
+	day=`expr "/$input" : '.*/.*-.*-\(.*\)\..*'`
+	analyse=`buildAnalyseFilename "$town" "$zip" "$day"`
+	cat < /dev/null > "$analyse"
+	echo "::TOWN:$town" >> "$analyse"
+	echo "::ZIP:$zip" >> "$analyse"
+	echo "::DAY:$day" >> "$analyse"
+    for line in `getInDayLines < "$input"`; do
+		sed -n "$line,/<.li>/p" < "$input" > tmp
+		instant="TODAY+`getInstant < tmp`"
+		echo "$instant:SKY:`getDailySky < tmp`" >> "$analyse"
+		echo "$instant:TEMP:`getDailyTemperature < tmp`" >> "$analyse"
+		echo "$instant:WIND_DIRECTION:`getDailyWindDirection < tmp`" >> "$analyse"
+		echo "$instant:WIND_SPEED:`getDailyWindSpeed < tmp`" >> "$analyse"
+		echo "$instant:WIND_GUST:`getDailyWindGusts < tmp`" >> "$analyse"
+    done
+	instant=0
+    for line in `getInWeekLines < "$input"`; do
+		sed -n "$line,/<.li>/p" < "$input" > tmp
+		((instant=instant+1))
+		instant="DAY+$instant"
+		echo "$instant:SKY:`getWeeklySky < tmp`" >> "$analyse"
+		echo "$instant:TEMP_MIN:`getWeeklyMinTemperature < tmp`" >> "$analyse"
+		echo "$instant:TEMP_MAX:`getWeeklyMaxTemperature < tmp`" >> "$analyse"
+		echo "$instant:WIND_DIRECTION:`getWeeklyWindDirection < tmp`" >> "$analyse"
+		echo "$instant:WIND_SPEED:`getWeeklyWindSpeed < tmp`" >> "$analyse"
+		echo "$instant:WIND_GUST:`getWeeklyWindGusts < tmp`" >> "$analyse"
+	done
+}
+
+function analyseAllFiles () {
+	for file in `echo $DLS/*.htm`; do
+		analyseOneFile "$file"
+	done
+}
+
+function option_a () {
+    messageOnStderr "analyse"
+#	analyseOneFile "colmar-68000-14_03_2023.htm"
+	for file in `echo $DLS/*.htm`; do
+		analyseOneFile "$file"
+	done
+}
+
+function correctDay () {
+   day=`expr "$1" : '\([0-9]*\).*'`
+   month=`expr "$1" : '[0-9]*[:/]\([0-9]*\).*'`
+   y1=`expr "$1" : '[0-9]*[:/][0-9]*[:/]\([0-9][0-9]\)$'` && y1="20$y1"
+   y2=`expr "$1" : '[0-9]*[:/][0-9]*[:/]\([0-9][0-9][0-9][0-9]\)$'`
+   year="$y1$y2"
+   day=${day:-`date "+%d"`}
+   month=${month:-`date "+%m"`}
+   year=${year:-`date "+%Y"`}
+   echo "$month/$day/$year"
+}
+
+function backInPast () {
+	date --date="$1 $2 days ago" "+%m_%d_%Y"
+}
+
+function buildSearchList () {
+    initialDay="$1"
+    echo "TODAY+" "$initialDay" | sed 's!/!_!g'
+    for i in `seq 1 5`; do
+       echo "DAY+$i" `backInPast "$initialDay" "$i"`
+	done
+}
+
+function filterSearchList () {
+    locality="$1"
+	while read key day dummy; do
+	    file="$ANALYSES/$locality-*/*-$day.txt"
+	    [ -f $file ] && grep -sq "^$key" < $file && echo $file $key
+		file="$ANALYSES/*-$locality/*-$day.txt"
+	    [ -f $file ] && grep -sq "^$key" < $file && echo $file $key
+	done
+}
+
+function processDataFile () {
+	echo "<h2> Prévision pour la ville $1 et le jour $2 </h2> "
+	echo "<table border='1'>"
+	while read file key dummy; do
+		grep "^$key" < "$file"
+	done | sed -e 's!^!<tr><td>!' -e 's!:!</td> <td>!g' -e 's!$!</td></tr>!'
+	echo "</table>"
+}
+
+function generateForOneEntry () {
+    locality="$1"
+	initialDay="$2"
+	buildSearchList "$initialDay" \
+			| filterSearchList "$locality" \
+			| processDataFile "$locality" "$initialDay"
+}
+
+function option_w () {
+    messageOnStderr "web for $1 at $2"
+    locality="$1"
+	initialDay=`correctDay "$2"`
+	{
+		echo "<html>"
+		echo "<head>"
+		echo "</head>"
+		echo "<body>"
+		echo "<h1> Les prévisions cumulatives offertes par l'ENSISA </h1> "
+		generateForOneEntry "$locality" "$initialDay"
+		echo "</body>"
+	} > page.html
+}
+
+function option_t () {
+    messageOnStderr "cheat with $1"
+}
+
+function help () {
+    {
+        echo "meteo [option]*"
+        echo "  -i"
+        echo "  -c"
+        echo "  -e"
+        echo "  -m town"
+        echo "  -s town"
+        echo "  -w town day"
+        echo "  -t day"
+        echo "  -h"
+    } 2>&1
+}
+
+function error () {
+    messageOnStderr "error $1"
+    exit 1
+}
+
+before
+while [ "$#" != "0" ]; do
+	case "$1" in
+	-i) option_i;;
+	-c) option_c;;
+	-e) option_e;;
+	-m) option_m "$2"; shift;;
+	-s) option_s "$2"; shift;;
+	-a) option_a;;
+	-w) option_w "$2" "$3"; shift; shift;;
+	-t) option_t "$2"; shift;;
+	-h) help;;
+	*) error "wrong option $1";;
+	esac
+    shift 1
+done

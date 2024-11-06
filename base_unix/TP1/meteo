@@ -1,32 +1,142 @@
 #!/bin/bash
 
+CACHE_DIR="./CACHE"
+DOWNLOADS_DIR="./DOWNLOADS"
+ANALYSIS_DIR="./ANALYSIS"
+POSTCODE_CITY_FILE="code_ville.txt"
+
+function rm_cache() {
+    echo "Efface le cache"
+    if [ -d "$CACHE_DIR" ]; then
+        rm -rf "$CACHE_DIR"/*
+    else
+        echo "Repertoire $CACHE_DIR n'existe pas, creation en cours"
+        mkdir -p "$CACHE_DIR"
+    fi
+}
+
+function rm_downloads() {
+    echo "Efface les téléchargements"
+    if [ -d "$DOWNLOADS_DIR" ]; then
+        rm -rf "$DOWNLOADS_DIR"/*
+    else
+        echo "Repertoire $DOWNLOADS_DIR n'existe pas, creation en cours"
+        mkdir -p "$DOWNLOADS_DIR"
+    fi
+}
+
+function rm_analysis() {
+    echo "Efface les analyses"
+    if [ -d "$ANALYSIS_DIR" ]; then
+        rm -rf "$ANALYSIS_DIR"/*
+    else
+        echo "Repertoire $ANALYSIS_DIR n'existe pas, creation en cours"
+        mkdir -p "$ANALYSIS_DIR"
+    fi
+}
+
+function save_code_postal_ville() {
+    if [[ -z "$1" || -z "$2" ]]; then
+        echo "Erreur : vous devez donner un code postal et une ville"
+    else
+        echo "$1:$2" >> $CACHE_DIR/$POSTCODE_CITY_FILE
+    fi
+}
+
+function check_code_ville() {
+    if [[ -z "$1" ]]; then
+        echo "Erreur : vous devez renseigner un code postal ou une ville"
+    else
+        if [[ ! -f "$CACHE_DIR/$POSTCODE_CITY_FILE" ]]; then
+            cat /dev/null >> $CACHE_DIR/$POSTCODE_CITY_FILE
+            echo "false"
+        else
+            local result=$(grep -i -m 1 "$1" "$CACHE_DIR/$POSTCODE_CITY_FILE") # -i pour ignorer les majuscules / minuscules, -m 1 pour limiter à un seul résultat (du coup le premier)
+            if [[ -n "$result" ]]; then
+                echo "$result"
+            else
+                echo "false"
+            fi
+        fi
+    fi
+}
+
+function get_code_ville() {
+    if [[ -z "$1" ]]; then
+        echo "Erreur : vous devez renseigner un code postal ou une ville"
+    else
+        local postcode
+        local city
+        local result=$(check_code_ville "$1")
+        if [[ "$result" != "false" ]]; then
+            postcode="${result%%:*}"  # Partie avant ":"
+            city="${result#*:}"  # Partie après ":"
+        else
+            local api="https://api-adresse.data.gouv.fr/search/?q=$1&limit=1&type=municipality"
+            local api_result=$(curl -s "$api")
+            postcode=$(echo "$api_result" | jq -r '.features[0].properties.postcode')
+            city=$(echo "$api_result" | jq -r '.features[0].properties.city')
+            save_code_postal_ville "$postcode" "$city"
+        fi
+        echo "$postcode" "$city"
+    fi
+}
+
+function is_page_already_download() {
+    if [[ -z "$1" ]]; then
+        echo "false"
+    else
+        echo "true"
+    fi
+}
+
+function donwload_page_online() {
+    if [[ -z "$1" ]]; then
+        echo "Erreur : vous devez renseigner un code postal ou une ville"
+    else
+        local result
+        RSLT=' ' read -r -a result <<< "$(get_code_ville "$1")" # Le nom de la variable devant le = n'a aucune importance, c'est juste pour définir qu'on va utiliser ' ' comme séparateur
+        local postcode=${result[0]}
+        local city=${result[1]}
+        local already_download=$(is_page_already_download)
+        if [[ "$already_download" != "true" ]]; then
+            local meteo_url="https://meteofrance.com/previsions-meteo-france/$city/$postcode"
+        else
+            echo "toto"
+        fi
+        echo $meteo_url
+    fi
+}
+
 function opt_i() {
     echo "Initialisation"
-
+    rm_cache
+    rm_downloads
+    rm_analysis
 }
 
 function opt_c() {
     echo "Effacement des téléchargements précédents"
-
+    rm_downloads
 }
 
 function opt_e() {
     echo "Effacement des analyses précédentes"
-
+    rm_analysis
 }
 
 function opt_m() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : Option -m nécessite un paramètre (ville)"
+        echo "Erreur : Option -m nécessite un paramètre (code postal ou nom de ville)"
     else
         echo "Téléchargement de la page météo pour la ville : $1"
-
+        donwload_page_online "$1"
     fi
 }
 
 function opt_s() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : Option -s nécessite un paramètre (ville)"
+        echo "Erreur : Option -s nécessite un paramètre (code postal ou nom de ville)"
     else
         echo "Téléchargement simulé de la météo pour la ville : $1"
 
@@ -40,7 +150,7 @@ function opt_a() {
 
 function opt_w() {
         if [[ -z "$1" || -z "$2" ]]; then
-        echo "Erreur : Option -w nécessite deux paramètres (ville et jour)"
+        echo "Erreur : Option -w nécessite deux paramètres ((code postal ou nom de ville) et jour)"
     else
         echo "Création de la page web pour la ville : $1 et le jour : $2"
 
@@ -49,14 +159,14 @@ function opt_w() {
 
 function opt_t() {
         if [[ -z "$1" ]]; then
-        echo "Erreur : Option -t nécessite un paramètre"
+        echo "Erreur : Option -t nécessite un paramètre (jour de décalage)"
     else
         echo "Triche avec le paramètre : $1"
 
     fi
 }
 
-opt_h() {
+function opt_h() {
     echo "Aide :"
     echo
     echo "Commande : ./meteo [options]"
@@ -90,48 +200,41 @@ opt_h() {
 
 
 function meteo() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -i) opt_i ;;
-            -c) opt_c ;;
-            -e) opt_e ;;
-            -m)
-                opt_m "$2"
-                shift
-                ;;
-            -s)
-                opt_s "$2"
-                shift
-                ;;
-            -a) opt_a ;;
-            -w)
-                opt_w "$2" "$3"
-                shift 2
-                ;;
-            -t)
-                opt_t "$2"
-                shift
-                ;;
-            -h) opt_h ;;
-            -*) echo "Option non valide : $1. Utilisez -h pour voir l'aide." ;;
-        esac
-        shift
-    done
+    if [[ -z "$1" ]]; then
+        echo "Vous devez passer des arguments pour cette utiliser cette commande, -h pour avoir l'aide"
+    else
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                -i) opt_i ;;
+                -c) opt_c ;;
+                -e) opt_e ;;
+                -m)
+                    opt_m "$2"
+                    shift
+                    ;;
+                -s)
+                    opt_s "$2"
+                    shift
+                    ;;
+                -a) opt_a ;;
+                -w)
+                    opt_w "$2" "$3"
+                    shift 2
+                    ;;
+                -t)
+                    opt_t "$2"
+                    shift
+                    ;;
+                -h) opt_h ;;
+                -*) echo "Option non valide : $1. Utilisez -h pour voir l'aide." ;;
+            esac
+            shift
+        done
+    fi
 }
 
 
 meteo "$@"
 
-# toto="68100"
-
-# api="https://api-adresse.data.gouv.fr/search/?q=$toto&limit=1&type=municipality"
-
-# result=$(curl -s "$api")
-
-# city=$(echo "$result" | jq -r '.features[0].properties.city')
-# postcode=$(echo "$result" | jq -r '.features[0].properties.postcode')
-
-# echo "City: $city"
-# echo "Postcode: $postcode"
-
-# meteo_url="http://www.meteofrance.com/previsions-meteo-france/$city/$postecode"
+# curl -s $meteo_url
+# brave --headless --disable-gpu --dump-dom --enable-unsafe-swiftshader "$url" > "$fichier"

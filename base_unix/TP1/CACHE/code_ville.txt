@@ -1,0 +1,7 @@
+25490:Dampierre-les-Bois
+25490:Badevel
+25490:Fesches-le-Châtel
+42000:Saint-Étienne
+31000:Toulouse
+null:null
+88100:Saint-Dié-des-Vosges

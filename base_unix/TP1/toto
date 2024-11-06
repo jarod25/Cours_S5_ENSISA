@@ -74,7 +74,7 @@ telecharger_meteo(){
     echo "Téléchargement des données météo avec Chromium "
     #curl ne marchera pas car il y a du js rendering 
 
-    chromium-browser --headless --disable-gpu --dump-dom "$url" > "$fichier"
+    brave --headless --disable-gpu --dump-dom --enable-unsafe-swiftshader "$url" > "$fichier"
 
     echo "Téléchargement terminé : $fichier"
 }

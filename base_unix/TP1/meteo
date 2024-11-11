@@ -37,15 +37,19 @@ function rm_analysis() {
 
 function save_code_postal_ville() {
     if [[ -z "$1" || -z "$2" ]]; then
-        echo "Erreur : vous devez donner un code postal et une ville"
+        return "SCPV_Erreur : vous devez donner un code postal et une ville"
     else
-        echo "$1:$2" >> $CACHE_DIR/$POSTCODE_CITY_FILE
+        # local formated_city=$(echo "$2" | sed -e 's/ /-/g' -e "s/'/-/g")
+        local result=$(check_code_ville "$2")
+        if [[ "$result" == "false" ]]; then
+            echo "$1:$2" >> $CACHE_DIR/$POSTCODE_CITY_FILE
+        fi
     fi
 }
 
 function check_code_ville() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : vous devez renseigner un code postal ou une ville"
+        return "CCV_Erreur : vous devez renseigner un code postal ou une ville"
     else
         if [[ ! -f "$CACHE_DIR/$POSTCODE_CITY_FILE" ]]; then
             cat /dev/null >> $CACHE_DIR/$POSTCODE_CITY_FILE
@@ -63,19 +67,28 @@ function check_code_ville() {
 
 function get_code_ville() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : vous devez renseigner un code postal ou une ville"
+        return "GCV1_Erreur : vous devez renseigner un code postal ou une ville"
     else
         local postcode
         local city
-        local result=$(check_code_ville "$1")
+        local formated_city=$(echo "$1" | sed -e 's/ /-/g' -e "s/'/-/g")
+        local result=$(check_code_ville "$formated_city")
         if [[ "$result" != "false" ]]; then
             postcode="${result%%:*}"  # Partie avant ":"
             city="${result#*:}"  # Partie après ":"
         else
-            local api="https://api-adresse.data.gouv.fr/search/?q=$1&limit=1&type=municipality"
+            local api="https://api-adresse.data.gouv.fr/search/?q=$formated_city&limit=1&type=municipality"
             local api_result=$(curl -s "$api")
             postcode=$(echo "$api_result" | jq -r '.features[0].properties.postcode')
             city=$(echo "$api_result" | jq -r '.features[0].properties.city')
+            city=$(echo "$city" | sed -e 's/ /-/g' -e "s/'/-/g")
+            if [[ -z "$postcode" ]]; then
+                return "GCV2_Erreur : impossible de trouver le code postal pour $1"
+            else 
+                if [[ -z "$city" ]]; then
+                    return "GCV3_Erreur : impossible de trouver la ville pour $1"
+                fi
+            fi
             save_code_postal_ville "$postcode" "$city"
         fi
         echo "$postcode" "$city"
@@ -92,12 +105,13 @@ function is_page_already_download() {
 
 function donwload_page_online() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : vous devez renseigner un code postal ou une ville"
+        return "DPO_Erreur : vous devez renseigner un code postal ou une ville"
     else
         local result
         RSLT=' ' read -r -a result <<< "$(get_code_ville "$1")" # Le nom de la variable devant le = n'a aucune importance, c'est juste pour définir qu'on va utiliser ' ' comme séparateur
         local postcode=${result[0]}
         local city=${result[1]}
+        city=$(echo "$city" | sed -e 's/ /-/g' -e "s/'/-/g")
         local already_download=$(is_page_already_download)
         if [[ "$already_download" != "true" ]]; then
             local meteo_url="https://meteofrance.com/previsions-meteo-france/$city/$postcode"
@@ -127,7 +141,7 @@ function opt_e() {
 
 function opt_m() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : Option -m nécessite un paramètre (code postal ou nom de ville)"
+        return "OM_Erreur : Option -m nécessite un paramètre (code postal ou nom de ville)"
     else
         echo "Téléchargement de la page météo pour la ville : $1"
         donwload_page_online "$1"
@@ -136,7 +150,7 @@ function opt_m() {
 
 function opt_s() {
     if [[ -z "$1" ]]; then
-        echo "Erreur : Option -s nécessite un paramètre (code postal ou nom de ville)"
+        return "OS_Erreur : Option -s nécessite un paramètre (code postal ou nom de ville)"
     else
         echo "Téléchargement simulé de la météo pour la ville : $1"
 
@@ -150,7 +164,7 @@ function opt_a() {
 
 function opt_w() {
         if [[ -z "$1" || -z "$2" ]]; then
-        echo "Erreur : Option -w nécessite deux paramètres ((code postal ou nom de ville) et jour)"
+        return "OW_Erreur : Option -w nécessite deux paramètres ((code postal ou nom de ville) et jour)"
     else
         echo "Création de la page web pour la ville : $1 et le jour : $2"
 
@@ -159,7 +173,7 @@ function opt_w() {
 
 function opt_t() {
         if [[ -z "$1" ]]; then
-        echo "Erreur : Option -t nécessite un paramètre (jour de décalage)"
+        return "OT_Erreur : Option -t nécessite un paramètre (jour de décalage)"
     else
         echo "Triche avec le paramètre : $1"
 

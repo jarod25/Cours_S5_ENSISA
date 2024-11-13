@@ -1,0 +1,109 @@
+/* 
+#toto => balise avec l'id "toto" : <p id="toto">Salut toto</p>
+.titi => balise avec la class "titi" : <p class="titi">Salut titi</p>
+div => s'applique a toutes les balises div : <div>Toutes les divs prennent les modifications css</div>
+
+
+=== Couleurs à savoir pour le partiel ===
+NOIR : 0% de toutes les couleurs :      #000000 / rgb(0,0,0)
+BLANC : 100% de toutes les couleurs :   #FFFFFF / rgb(255,255,255)
+ROUGE : 100% de rouge, 0% du reste      #FF0000 / rgb(255,0,0)
+VERT : 100% de vert, 0% du reste        #00FF00 / rgb(0,255,0)
+BLEU : 100% de bleu, 0% du reste        #0000FF / rgb(0,0,255)
+*/
+
+*{
+    /*réinitialiser les marges*/
+    margin:0;
+    padding:0;
+    font-family:Verdana, Geneva, Tahoma, sans-serif;
+}
+
+/* body{
+    background-color: #f0f0f0;
+} */
+
+header{
+    background-color: rgb(107, 2, 56);
+}
+
+#contenu{
+    background-color: #E0E0E0;
+    /* background: rgb(150,7,78);
+     background: -moz-linear-gradient(90deg, rgb(150, 7, 78) 0%, rgba(255,20,147,1) 50%, rgba(107,2,56,1) 75%);
+    background: -webkit-linear-gradient(90deg, rgba(150,7,78,1) 0%, rgba(255,20,147,1) 50%, rgba(107,2,56,1) 75%);
+    background: linear-gradient(90deg, rgba(150,7,78,1) 0%, rgba(255,20,147,1) 50%, rgba(107,2,56,1) 75%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#96074e",endColorstr="#450733",GradientType=1); */
+    padding: 20px;
+}
+
+footer{
+    background-color: rgb(150, 7, 78);
+    color:rgb(218, 149, 197);
+    height: 45px;
+    text-align: center;
+    position: fixed;
+    bottom:0;
+}
+
+header,footer{
+    width: 100%;
+}
+
+nav, #contenu{
+    width:auto;
+    height: 80vh;
+}
+
+header a{
+    color:rgb(218, 149, 197);
+    text-decoration: none;
+}
+
+header a:hover{
+    color:deeppink;
+}
+
+header h1, header h2{
+    text-align: center;
+}
+
+nav{
+    height:50px;
+    margin:auto;
+    text-align: center;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+nav a{
+    background-color: rgb(150, 7, 78);
+    display: inline-block;
+    width: 20%;
+    border-radius: 45%;
+    line-height: 35px;
+}
+
+nav a:hover{
+    background-color:rgb(69, 7, 51);
+    color:rgb(255, 159, 191);
+}
+
+#contenu div{
+    display: inline-block;
+    vertical-align: top;
+}
+
+#accueil_gauche{
+    width: 940px;
+}
+
+#accueil_droite{
+    width: 250px;
+    text-align: center;
+}
+
+#accueil_gauche p{
+    text-align: justify;
+    margin: 10px 50px;
+}

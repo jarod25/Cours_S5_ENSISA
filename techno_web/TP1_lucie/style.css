@@ -1,0 +1,181 @@
+/* 
+
+@font-face {
+    font-family:"Japanese" ;
+    src: url(font/japanese/Japanese.ttf) format("truetype");
+}
+*/
+.blink_me {
+    animation: blinker 0.1s linear infinite;
+  }
+  
+  @keyframes blinker {
+    100% {
+      opacity: 0;
+    }
+  }
+
+*{
+
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.rouge {
+    color:red
+    
+}
+
+.tp3 {
+    background-image: url(image/pepe_the_frog.jpeg);
+}
+
+nav ul{
+    padding:500px;
+    text-transform: lowercase;
+}
+
+h1,h2,h3,h4,h5,h6{
+    font-family: "Japanese", Arial;
+}
+
+p{
+    font-family: "Japanese", Arial;
+    margin-top: 20px;
+    margin-bottom: 100px;
+    padding-left: 5px;
+    padding: 0px;
+}
+section {
+    margin:auto;
+    background-image:url(image/peanut_butter_jelly_time.jpg) ;
+    background-attachment:fixed;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+nav {
+    background-image: url(image/large_landscape_262541.jpg);
+}
+nav ul  li{
+    background-color: white;
+}
+nav ul li a:hover{
+    text-decoration: underline;
+}
+
+nav ul li a:active{
+    color:green;
+}
+
+nav ul li a:visited{
+    color:red;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes losange {
+    0% {
+        top: 50%;
+        left: 100%;
+        transform: translate(-50%, -50%);
+      }
+      25% {
+        top: 0%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      50% {
+        top: 50%;
+        left: 0%;
+        transform: translate(-50%, -50%);
+      }
+      75% {
+        top: 100%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      100% {
+        top: 50%;
+        left: 100%;
+        transform: translate(-50%, -50%);
+      }
+}
+
+@keyframes losangeRotate {
+    0% {
+        top: 50%;
+        left: 100%;
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    25% {
+        top: 0%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(180deg);
+    }
+    50% {
+        top: 50%;
+        left: 0%;
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+    75% {
+        top: 100%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(180deg);
+    }
+    100% {
+        top: 50%;
+        left: 100%;
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+}
+
+
+footer {
+    height: 1950px;
+}
+
+footer p{
+    background-color: yellow;
+    text-align: center;
+    animation:rotate 0.3s linear infinite;
+    margin-top: -1000px;
+    margin-bottom: 1100px;
+}
+
+.balai {
+    width: 500px;
+    height: auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.balaiSlide {
+    width: 256px;
+    height: auto;
+    position: relative;
+    overflow: hidden; 
+}
+
+.losange {
+    animation: losange 1s linear infinite;
+}
+
+.rotate {
+    animation: rotate 4s linear infinite
+}
+
+.losangeRotate {
+    animation: losangeRotate 2s linear infinite;
+}
+
+body {
+    background-image: linear-gradient(red, yellow,  purple, green);
+}

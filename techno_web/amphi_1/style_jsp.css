@@ -1,0 +1,17 @@
+header {
+    height: 10vh;
+}
+
+/* 
+#toto => balise avec l'id "toto" : <p id="toto">Salut toto</p>
+.titi => balise avec la class "titi" : <p class="titi">Salut titi</p>
+div => s'applique a toutes les balises div : <div>Toutes les divs prennent les modifications css</div>
+
+
+=== Couleurs à savoir pour le partiel ===
+NOIR : 0% de toutes les couleurs :      #000000 / rgb(0,0,0)
+BLANC : 100% de toutes les couleurs :   #FFFFFF / rgb(255,255,255)
+ROUGE : 100% de rouge, 0% du reste      #FF0000 / rgb(255,0,0)
+VERT : 100% de vert, 0% du reste        #00FF00 / rgb(0,255,0)
+BLEU : 100% de bleu, 0% du reste        #0000FF / rgb(0,0,255)
+*/

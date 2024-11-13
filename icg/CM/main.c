@@ -9,18 +9,18 @@ int* range(int n) {
     }
     *array = n;
     for (int i = 1; i <= n; i++) {
-        *(array + i) = i - 1;
+        *(array + i) = i;
     }
     return array;
 }
 
-int* map(int (*f)(int), int* array, int n) {
-    int* result = malloc((n + 1) * sizeof(int));
+int* map(int (*f)(int), int* array) {
+    int* result = malloc((array[0] + 1) * sizeof(int));
     if (result == NULL) {
         return NULL;
     }
-    *result = n;
-    for (int i = 1; i <= n; i++) {
+    *result = array[0];
+    for (int i = 1; i <= array[0]; i++) {
         *(result + i) = f(*(array + i));
     }
     return result;
@@ -53,7 +53,7 @@ int main() {
     }
     printf("\n");
 
-    int* squared_array = map(square, array, n);
+    int* squared_array = map(square, array);
     if (squared_array == NULL) {
         free(array);
         printf("Erreur d'allocation de mémoire\n");
@@ -67,6 +67,7 @@ int main() {
     printf("\n");
 
     printf("Somme : %d\n", sum(array));
+    printf("Somme : %d\n", sum(squared_array));
 
     free(array);
     free(squared_array);

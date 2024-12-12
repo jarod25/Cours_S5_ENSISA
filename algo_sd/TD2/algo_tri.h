@@ -1,0 +1,9 @@
+int* tri_par_selection(int n, int table_non_triee[]);
+int* tri_par_insertion(int n, int table[]);
+int* tri_a_bulles(int n, int table[]);
+int* tri_fusion(int n, int table[]);
+int* tri_rapide(int n, int table[]);
+int* tri_par_comptage(int n, int table[]);
+int* tri_par_base(int n, int table[]);
+int* tri_par_paquets(int n, int table[]);
+int* echanger(int* a, int* b);

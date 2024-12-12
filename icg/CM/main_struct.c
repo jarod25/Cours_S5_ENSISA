@@ -38,7 +38,7 @@ struct Heure ajoute_minutes(struct Heure heure, int minutes) {
 }
 
 int main() {
-  struct Heure heure_courante;
+    struct Heure heure_courante;
     heure_courante.h = 10;
     heure_courante.m = 59;
     affiche(heure_courante);
